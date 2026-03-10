@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<title>Reddit Geopolitical OSINT Monitor</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+
+body{
+background:#0b0f14;
+color:white;
+font-family:Inter,Arial;
+margin:0;
+}
+
+h1{
+text-align:center;
+margin:25px;
+}
+
+.container{
+width:94%;
+margin:auto;
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:25px;
+}
+
+.card{
+background:#151b23;
+padding:20px;
+border-radius:12px;
+box-shadow:0 10px 30px rgba(0,0,0,0.6);
+}
+
+.full{
+grid-column:1/3;
+}
+
+#map{
+height:420px;
+}
+
+#feed{
+max-height:260px;
+overflow:auto;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>🌍 Reddit Geopolitical OSINT Monitor</h1>
+
+<div class="container">
+
+<div class="grid">
+
+<div class="card">
+<h2>Global Emotions</h2>
+<canvas id="emotionChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Geopolitical Narratives</h2>
+<canvas id="narrativeChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Regions</h2>
+<canvas id="regionChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Subreddit Activity</h2>
+<canvas id="subChart"></canvas>
+</div>
+
+<div class="card full">
+<h2>Geopolitical Map</h2>
+<div id="map"></div>
+</div>
+
+<div class="card full">
+<h2>Detected Opinions</h2>
+<div id="feed"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+
+const subreddits=[
+
+"worldnews","geopolitics","internationalpolitics",
+"war","europe","china","russia","ukraine",
+"latinamerica","middleeast","asia","energy",
+"economics","technology","security","nato",
+"foreignpolicy","climate","globalnews","politics"
+
+]
+
+const emotions={
+
+fear:["war","crisis","conflict","threat"],
+anger:["corruption","sanctions","protest"],
+optimism:["agreement","growth","cooperation"],
+tension:["military","nuclear","missile"]
+
+}
+
+const narratives={
+
+war:["war","battle","military"],
+trade:["trade","tariff","export"],
+energy:["oil","gas","energy"],
+technology:["ai","chips","semiconductors"],
+sanctions:["sanctions","embargo"],
+diplomacy:["talks","diplomacy"],
+alliances:["nato","alliance","treaty"]
+
+}
+
+const regions={
+
+USA:["america","united states","washington"],
+China:["china","beijing"],
+Russia:["russia","kremlin"],
+Europe:["europe","eu"],
+MiddleEast:["iran","israel","saudi"],
+LatinAmerica:["brazil","mexico","colombia"],
+Asia:["india","japan","korea"]
+
+}
+
+function detectCategory(text,dict){
+
+text=text.toLowerCase()
+
+for(let k in dict){
+
+if(dict[k].some(w=>text.includes(w)))
+return k
+
+}
+
+return "neutral"
+
+}
+
+async function getPosts(sub){
+
+const res=await fetch(
+`https://www.reddit.com/r/${sub}.json?limit=15`
+)
+
+const data=await res.json()
+
+return data.data.children
+
+}
+
+async function analyze(){
+
+let emotionCount={}
+let narrativeCount={}
+let regionCount={}
+let subCount={}
+let feed=[]
+
+for(let sub of subreddits){
+
+try{
+
+let posts=await getPosts(sub)
+
+subCount[sub]=posts.length
+
+posts.forEach(p=>{
+
+let text=p.data.title+" "+(p.data.selftext||"")
+
+let e=detectCategory(text,emotions)
+let n=detectCategory(text,narratives)
+let r=detectCategory(text,regions)
+
+emotionCount[e]=(emotionCount[e]||0)+1
+narrativeCount[n]=(narrativeCount[n]||0)+1
+regionCount[r]=(regionCount[r]||0)+1
+
+feed.push({
+text:text,
+sub:sub,
+emotion:e,
+narrative:n,
+region:r
+})
+
+})
+
+}catch(e){
+console.log("error subreddit",sub)
+}
+
+}
+
+createCharts(emotionCount,narrativeCount,regionCount,subCount)
+
+displayFeed(feed)
+
+createMap(regionCount)
+
+}
+
+function createCharts(e,n,r,s){
+
+new Chart(
+emotionChart,
+{
+type:"pie",
+data:{labels:Object.keys(e),datasets:[{data:Object.values(e)}]}
+})
+
+new Chart(
+narrativeChart,
+{
+type:"bar",
+data:{labels:Object.keys(n),datasets:[{data:Object.values(n),backgroundColor:"#ffcc00"}]}
+})
+
+new Chart(
+regionChart,
+{
+type:"bar",
+data:{labels:Object.keys(r),datasets:[{data:Object.values(r),backgroundColor:"#4da6ff"}]}
+})
+
+new Chart(
+subChart,
+{
+type:"bar",
+data:{labels:Object.keys(s),datasets:[{data:Object.values(s),backgroundColor:"#ff66cc"}]}
+})
+
+}
+
+function displayFeed(feed){
+
+const div=document.getElementById("feed")
+
+feed.slice(0,80).forEach(f=>{
+
+let el=document.createElement("p")
+
+el.innerHTML=`
+<b>r/${f.sub}</b> |
+${f.region} |
+${f.narrative}
+<br>
+${f.text}
+`
+
+div.appendChild(el)
+
+})
+
+}
+
+function createMap(regions){
+
+const map=L.map('map').setView([20,0],2)
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+).addTo(map)
+
+const coords={
+
+USA:[38,-97],
+China:[35,103],
+Russia:[55,37],
+Europe:[50,10],
+MiddleEast:[25,45],
+LatinAmerica:[-15,-60],
+Asia:[20,100]
+
+}
+
+for(let r in regions){
+
+if(coords[r]){
+
+L.circleMarker(coords[r],{
+radius:regions[r]*2+5,
+color:"red"
+}).addTo(map)
+.bindPopup(r)
+
+}
+
+}
+
+}
+
+analyze()
+
+</script>
+
+</body>
+</html>

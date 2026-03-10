@@ -3,7 +3,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Reddit Opinion Intelligence Monitor</title>
+<title>Global Opinion Intelligence Monitor</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -23,7 +23,7 @@ margin:0;
 
 h1{
 text-align:center;
-margin:25px;
+margin:20px;
 }
 
 .container{
@@ -31,16 +31,30 @@ width:95%;
 margin:auto;
 }
 
+.metrics{
+display:flex;
+justify-content:space-around;
+margin-bottom:20px;
+}
+
+.metric{
+background:#151b23;
+padding:15px;
+border-radius:8px;
+width:22%;
+text-align:center;
+}
+
 .grid{
 display:grid;
 grid-template-columns:1fr 1fr;
-gap:25px;
+gap:20px;
 }
 
 .card{
 background:#151b23;
 padding:20px;
-border-radius:12px;
+border-radius:10px;
 }
 
 .full{
@@ -52,53 +66,88 @@ height:420px;
 }
 
 #opinions{
-max-height:300px;
+max-height:400px;
 overflow:auto;
 }
 
-#alerts{
-color:#ff4d4d;
-font-weight:bold;
+.opinion{
+border-bottom:1px solid #333;
+padding:10px;
+}
+
+.meta{
+font-size:12px;
+color:#aaa;
 }
 
 </style>
+
 </head>
 
 <body>
 
-<h1>🌍 Reddit Opinion Intelligence Monitor</h1>
+<h1>🌍 Global Opinion Intelligence Monitor</h1>
 
 <div class="container">
+
+<div class="metrics">
+
+<div class="metric">
+<h2 id="riskIndex">0%</h2>
+Emotional Risk Index
+</div>
+
+<div class="metric">
+<h2 id="dominantEmotion">-</h2>
+Dominant Emotion
+</div>
+
+<div class="metric">
+<h2 id="dominantNarrative">-</h2>
+Main Narrative
+</div>
+
+<div class="metric">
+<h2 id="activeRegion">-</h2>
+Active Region
+</div>
+
+</div>
 
 <div class="grid">
 
 <div class="card">
-<h2>Sentiment Distribution</h2>
+<h3>Emotion Distribution</h3>
 <canvas id="sentimentChart"></canvas>
 </div>
 
 <div class="card">
-<h2>Geopolitical Narratives</h2>
-<canvas id="narrativeChart"></canvas>
+<h3>PESTLE Landscape</h3>
+<canvas id="pestleChart"></canvas>
 </div>
 
 <div class="card">
-<h2>Emotional Risk Indicators</h2>
-<div id="alerts"></div>
+<h3>Diplomatic Channels</h3>
+<canvas id="diplomacyChart"></canvas>
 </div>
 
 <div class="card">
-<h2>Subreddit Activity</h2>
-<canvas id="subChart"></canvas>
+<h3>Forms of Power</h3>
+<canvas id="powerChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Cultural Effects</h3>
+<canvas id="cultureChart"></canvas>
 </div>
 
 <div class="card full">
-<h2>Global Emotional Influence</h2>
+<h3>Global Emotional Map</h3>
 <div id="map"></div>
 </div>
 
 <div class="card full">
-<h2>Detected Reddit Opinions</h2>
+<h3>Extracted Opinions</h3>
 <div id="opinions"></div>
 </div>
 
@@ -107,70 +156,153 @@ font-weight:bold;
 
 <script>
 
+/* SUBREDDITS */
+
 const subreddits=[
-"worldnews","geopolitics","europe","china",
-"russia","ukraine","latinamerica",
-"middleeast","energy","economics",
-"technology","security"
+
+"worldnews",
+"news",
+"geopolitics",
+"internationalpolitics",
+"politics",
+"europe",
+"china",
+"russia",
+"ukraine",
+"middleeast",
+"latinamerica",
+"asia",
+"india",
+"economics",
+"finance",
+"technology",
+"futurology",
+"energy",
+"security",
+"war"
+
 ]
 
-const opinionPatterns=[
-"i think","i feel","i believe",
-"in my opinion","i'm worried",
-"i am worried","i'm afraid"
+/* OPINION EXPRESSIONS */
+
+const opinionExpressions=[
+"i think",
+"i believe",
+"in my opinion",
+"i feel",
+"i suspect",
+"i'm worried",
+"i hope",
+"it seems to me",
+"personally i think",
+"my guess is"
 ]
 
-const sentiments={
-fear:["war","nuclear","threat","danger","afraid"],
-anger:["corruption","sanctions","attack","protest"],
+/* EMOTIONS */
+
+const emotions={
+fear:["war","threat","nuclear","danger"],
+anger:["corruption","attack","sanctions"],
 trust:["cooperation","agreement","peace"],
 optimism:["growth","innovation","progress"],
-sadness:["crisis","poverty","collapse"]
+sadness:["crisis","collapse","poverty"]
 }
 
-const narratives={
-war:["war","military","battle","troops"],
-economy:["inflation","economy","recession"],
-energy:["oil","gas","energy"],
-technology:["ai","chips","technology"],
-sanctions:["sanctions","embargo"],
-alliances:["nato","alliance"]
+/* PESTLE */
+
+const pestle={
+
+political:["government","election","policy","state"],
+economic:["inflation","economy","recession","market"],
+social:["society","migration","population"],
+technological:["ai","technology","chips","innovation"],
+legal:["law","regulation","court","treaty"],
+environmental:["climate","energy","pollution","environment"]
+
 }
+
+/* DIPLOMATIC CHANNELS */
+
+const diplomacy={
+
+bilateral:["talks","meeting","dialogue"],
+multilateral:["un","summit","conference"],
+alliance:["nato","alliance"],
+sanctions:["sanctions","embargo"],
+trade:["trade","tariffs"],
+mediation:["negotiation","mediator"]
+
+}
+
+/* POWER TYPES */
+
+const powerTypes={
+
+military:["military","troops","weapons"],
+economic:["economy","trade","sanctions"],
+soft:["culture","media","influence"],
+technological:["technology","ai","chips"],
+diplomatic:["treaty","summit","alliance"],
+cultural:["language","identity","values"]
+
+}
+
+/* CULTURAL EFFECTS */
+
+const culture={
+
+media:["media","news","propaganda"],
+identity:["identity","nationalism"],
+language:["language","narrative"],
+ideology:["ideology","values"],
+publicOpinion:["public opinion","society"]
+
+}
+
+/* REGIONS */
 
 const regions={
-USA:["america","united states","washington"],
+
+USA:["america","united states"],
 China:["china","beijing"],
 Russia:["russia","kremlin"],
 Europe:["europe","eu"],
 MiddleEast:["iran","israel","saudi"],
 LatinAmerica:["brazil","mexico","colombia"],
 Asia:["india","japan","korea"]
-}
-
-function containsOpinion(text){
-
-text=text.toLowerCase()
-
-return opinionPatterns.some(p=>text.includes(p))
 
 }
+
+/* DETECTION */
 
 function detect(text,dict){
 
 text=text.toLowerCase()
 
 for(let k in dict){
+
 if(dict[k].some(w=>text.includes(w)))
 return k
-}
-
-return "neutral"
 
 }
 
-async function getPosts(sub){
+return "other"
 
-const url=`https://www.reddit.com/r/${sub}/hot.json?limit=25`
+}
+
+function detectOpinion(text){
+
+text=text.toLowerCase()
+
+return opinionExpressions.some(e=>text.includes(e))
+
+}
+
+/* FETCH POSTS */
+
+async function fetchPosts(sub){
+
+const url=`https://www.reddit.com/r/${sub}/hot.json?limit=100`
 
 const res=await fetch(url)
 
@@ -180,42 +312,56 @@ return data.data.children
 
 }
 
+/* ANALYSIS */
+
 async function analyze(){
 
 let sentimentCount={}
-let narrativeCount={}
+let pestleCount={}
+let diplomacyCount={}
+let powerCount={}
+let cultureCount={}
 let regionCount={}
-let subCount={}
 let opinions=[]
 
 for(let sub of subreddits){
 
 try{
 
-let posts=await getPosts(sub)
-
-subCount[sub]=posts.length
+let posts=await fetchPosts(sub)
 
 posts.forEach(p=>{
 
 let text=p.data.title+" "+(p.data.selftext||"")
 
-if(!containsOpinion(text)) return
+if(!detectOpinion(text)) return
 
-let s=detect(text,sentiments)
-let n=detect(text,narratives)
-let r=detect(text,regions)
+let emotion=detect(text,emotions)
+let pest=detect(text,pestle)
+let dip=detect(text,diplomacy)
+let power=detect(text,powerTypes)
+let cult=detect(text,culture)
+let region=detect(text,regions)
 
-sentimentCount[s]=(sentimentCount[s]||0)+1
-narrativeCount[n]=(narrativeCount[n]||0)+1
-regionCount[r]=(regionCount[r]||0)+1
+sentimentCount[emotion]=(sentimentCount[emotion]||0)+1
+pestleCount[pest]=(pestleCount[pest]||0)+1
+diplomacyCount[dip]=(diplomacyCount[dip]||0)+1
+powerCount[power]=(powerCount[power]||0)+1
+cultureCount[cult]=(cultureCount[cult]||0)+1
+regionCount[region]=(regionCount[region]||0)+1
 
 opinions.push({
+
+subreddit:sub,
 text:text,
-sentiment:s,
-narrative:n,
-region:r,
-sub:sub
+emotion:emotion,
+pestle:pest,
+diplomacy:dip,
+power:power,
+culture:cult,
+region:region,
+score:p.data.score
+
 })
 
 })
@@ -224,85 +370,80 @@ sub:sub
 
 }
 
-createCharts(sentimentCount,narrativeCount,subCount)
+renderCharts(sentimentCount,pestleCount,diplomacyCount,powerCount,cultureCount)
 
-displayOpinions(opinions)
-
-detectRisks(sentimentCount,narrativeCount)
+renderOpinions(opinions)
 
 createMap(regionCount)
 
 }
 
-function createCharts(s,n,sub){
+/* CHARTS */
+
+function renderCharts(s,p,d,po,c){
 
 new Chart(sentimentChart,{
 type:"pie",
-data:{
-labels:Object.keys(s),
-datasets:[{data:Object.values(s)}]
-}
+data:{labels:Object.keys(s),datasets:[{data:Object.values(s)}]}
 })
 
-new Chart(narrativeChart,{
+new Chart(pestleChart,{
 type:"bar",
-data:{
-labels:Object.keys(n),
-datasets:[{data:Object.values(n),backgroundColor:"#ffcc00"}]
-}
+data:{labels:Object.keys(p),datasets:[{data:Object.values(p)}]}
 })
 
-new Chart(subChart,{
+new Chart(diplomacyChart,{
 type:"bar",
-data:{
-labels:Object.keys(sub),
-datasets:[{data:Object.values(sub),backgroundColor:"#4da6ff"}]
-}
+data:{labels:Object.keys(d),datasets:[{data:Object.values(d)}]}
+})
+
+new Chart(powerChart,{
+type:"bar",
+data:{labels:Object.keys(po),datasets:[{data:Object.values(po)}]}
+})
+
+new Chart(cultureChart,{
+type:"doughnut",
+data:{labels:Object.keys(c),datasets:[{data:Object.values(c)}]}
 })
 
 }
 
-function displayOpinions(list){
+/* OPINIONS */
+
+function renderOpinions(list){
 
 const div=document.getElementById("opinions")
 
-list.slice(0,80).forEach(o=>{
+list.sort((a,b)=>b.score-a.score)
 
-let p=document.createElement("p")
+list.slice(0,100).forEach(o=>{
 
-p.innerHTML=
-"<b>r/"+o.sub+"</b> | "+
-o.sentiment+" | "+
-o.narrative+
-"<br>"+o.text
+let el=document.createElement("div")
 
-div.appendChild(p)
+el.className="opinion"
+
+el.innerHTML=
+
+"<div class='meta'>r/"+o.subreddit+
+" | score "+o.score+"</div>"+
+
+"<b>Emotion:</b> "+o.emotion+" | "+
+"<b>PESTLE:</b> "+o.pestle+" | "+
+"<b>Diplomacy:</b> "+o.diplomacy+" | "+
+"<b>Power:</b> "+o.power+" | "+
+"<b>Culture:</b> "+o.culture+" | "+
+"<b>Region:</b> "+o.region+
+
+"<br><br>"+o.text
+
+div.appendChild(el)
 
 })
 
 }
 
-function detectRisks(sentiments,narratives){
-
-const alerts=document.getElementById("alerts")
-
-let text=""
-
-if(sentiments.fear>5)
-text+="🔴 High fear narrative detected<br>"
-
-if(sentiments.anger>5)
-text+="🔴 Anger escalation detected<br>"
-
-if(narratives.war>5)
-text+="🟠 War escalation discussion rising<br>"
-
-if(narratives.economy>5)
-text+="🟡 Economic crisis narrative rising<br>"
-
-alerts.innerHTML=text||"No critical emotional signals detected"
-
-}
+/* MAP */
 
 function createMap(regions){
 
@@ -313,6 +454,7 @@ L.tileLayer(
 ).addTo(map)
 
 const coords={
+
 USA:[38,-97],
 China:[35,103],
 Russia:[55,37],
@@ -320,6 +462,7 @@ Europe:[50,10],
 MiddleEast:[25,45],
 LatinAmerica:[-15,-60],
 Asia:[20,100]
+
 }
 
 for(let r in regions){
@@ -327,10 +470,12 @@ for(let r in regions){
 if(coords[r]){
 
 L.circleMarker(coords[r],{
+
 radius:regions[r]*2+5,
 color:"red"
+
 }).addTo(map)
-.bindPopup(r)
+.bindPopup(r+" opinions: "+regions[r])
 
 }
 
@@ -341,5 +486,6 @@ color:"red"
 analyze()
 
 </script>
+
 </body>
 </html>

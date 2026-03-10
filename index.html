@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 
 <meta charset="UTF-8">
-<title>Reddit Geopolitical OSINT Monitor</title>
+<title>Reddit Opinion Intelligence Monitor</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -17,7 +17,7 @@ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 body{
 background:#0b0f14;
 color:white;
-font-family:Inter,Arial;
+font-family:Arial;
 margin:0;
 }
 
@@ -27,7 +27,7 @@ margin:25px;
 }
 
 .container{
-width:94%;
+width:95%;
 margin:auto;
 }
 
@@ -41,7 +41,6 @@ gap:25px;
 background:#151b23;
 padding:20px;
 border-radius:12px;
-box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
 
 .full{
@@ -52,26 +51,30 @@ grid-column:1/3;
 height:420px;
 }
 
-#feed{
-max-height:260px;
+#opinions{
+max-height:300px;
 overflow:auto;
 }
 
-</style>
+#alerts{
+color:#ff4d4d;
+font-weight:bold;
+}
 
+</style>
 </head>
 
 <body>
 
-<h1>🌍 Reddit Geopolitical OSINT Monitor</h1>
+<h1>🌍 Reddit Opinion Intelligence Monitor</h1>
 
 <div class="container">
 
 <div class="grid">
 
 <div class="card">
-<h2>Global Emotions</h2>
-<canvas id="emotionChart"></canvas>
+<h2>Sentiment Distribution</h2>
+<canvas id="sentimentChart"></canvas>
 </div>
 
 <div class="card">
@@ -80,8 +83,8 @@ overflow:auto;
 </div>
 
 <div class="card">
-<h2>Regions</h2>
-<canvas id="regionChart"></canvas>
+<h2>Emotional Risk Indicators</h2>
+<div id="alerts"></div>
 </div>
 
 <div class="card">
@@ -90,13 +93,13 @@ overflow:auto;
 </div>
 
 <div class="card full">
-<h2>Geopolitical Map</h2>
+<h2>Global Emotional Influence</h2>
 <div id="map"></div>
 </div>
 
 <div class="card full">
-<h2>Detected Opinions</h2>
-<div id="feed"></div>
+<h2>Detected Reddit Opinions</h2>
+<div id="opinions"></div>
 </div>
 
 </div>
@@ -105,38 +108,36 @@ overflow:auto;
 <script>
 
 const subreddits=[
-
-"worldnews","geopolitics","internationalpolitics",
-"war","europe","china","russia","ukraine",
-"latinamerica","middleeast","asia","energy",
-"economics","technology","security","nato",
-"foreignpolicy","climate","globalnews","politics"
-
+"worldnews","geopolitics","europe","china",
+"russia","ukraine","latinamerica",
+"middleeast","energy","economics",
+"technology","security"
 ]
 
-const emotions={
+const opinionPatterns=[
+"i think","i feel","i believe",
+"in my opinion","i'm worried",
+"i am worried","i'm afraid"
+]
 
-fear:["war","crisis","conflict","threat"],
-anger:["corruption","sanctions","protest"],
-optimism:["agreement","growth","cooperation"],
-tension:["military","nuclear","missile"]
-
+const sentiments={
+fear:["war","nuclear","threat","danger","afraid"],
+anger:["corruption","sanctions","attack","protest"],
+trust:["cooperation","agreement","peace"],
+optimism:["growth","innovation","progress"],
+sadness:["crisis","poverty","collapse"]
 }
 
 const narratives={
-
-war:["war","battle","military"],
-trade:["trade","tariff","export"],
+war:["war","military","battle","troops"],
+economy:["inflation","economy","recession"],
 energy:["oil","gas","energy"],
-technology:["ai","chips","semiconductors"],
+technology:["ai","chips","technology"],
 sanctions:["sanctions","embargo"],
-diplomacy:["talks","diplomacy"],
-alliances:["nato","alliance","treaty"]
-
+alliances:["nato","alliance"]
 }
 
 const regions={
-
 USA:["america","united states","washington"],
 China:["china","beijing"],
 Russia:["russia","kremlin"],
@@ -144,18 +145,23 @@ Europe:["europe","eu"],
 MiddleEast:["iran","israel","saudi"],
 LatinAmerica:["brazil","mexico","colombia"],
 Asia:["india","japan","korea"]
+}
+
+function containsOpinion(text){
+
+text=text.toLowerCase()
+
+return opinionPatterns.some(p=>text.includes(p))
 
 }
 
-function detectCategory(text,dict){
+function detect(text,dict){
 
 text=text.toLowerCase()
 
 for(let k in dict){
-
 if(dict[k].some(w=>text.includes(w)))
 return k
-
 }
 
 return "neutral"
@@ -164,9 +170,9 @@ return "neutral"
 
 async function getPosts(sub){
 
-const res=await fetch(
-`https://www.reddit.com/r/${sub}.json?limit=15`
-)
+const url=`https://www.reddit.com/r/${sub}/hot.json?limit=25`
+
+const res=await fetch(url)
 
 const data=await res.json()
 
@@ -176,11 +182,11 @@ return data.data.children
 
 async function analyze(){
 
-let emotionCount={}
+let sentimentCount={}
 let narrativeCount={}
 let regionCount={}
 let subCount={}
-let feed=[]
+let opinions=[]
 
 for(let sub of subreddits){
 
@@ -194,89 +200,107 @@ posts.forEach(p=>{
 
 let text=p.data.title+" "+(p.data.selftext||"")
 
-let e=detectCategory(text,emotions)
-let n=detectCategory(text,narratives)
-let r=detectCategory(text,regions)
+if(!containsOpinion(text)) return
 
-emotionCount[e]=(emotionCount[e]||0)+1
+let s=detect(text,sentiments)
+let n=detect(text,narratives)
+let r=detect(text,regions)
+
+sentimentCount[s]=(sentimentCount[s]||0)+1
 narrativeCount[n]=(narrativeCount[n]||0)+1
 regionCount[r]=(regionCount[r]||0)+1
 
-feed.push({
+opinions.push({
 text:text,
-sub:sub,
-emotion:e,
+sentiment:s,
 narrative:n,
-region:r
+region:r,
+sub:sub
 })
 
 })
 
-}catch(e){
-console.log("error subreddit",sub)
-}
+}catch(e){}
 
 }
 
-createCharts(emotionCount,narrativeCount,regionCount,subCount)
+createCharts(sentimentCount,narrativeCount,subCount)
 
-displayFeed(feed)
+displayOpinions(opinions)
+
+detectRisks(sentimentCount,narrativeCount)
 
 createMap(regionCount)
 
 }
 
-function createCharts(e,n,r,s){
+function createCharts(s,n,sub){
 
-new Chart(
-emotionChart,
-{
+new Chart(sentimentChart,{
 type:"pie",
-data:{labels:Object.keys(e),datasets:[{data:Object.values(e)}]}
+data:{
+labels:Object.keys(s),
+datasets:[{data:Object.values(s)}]
+}
 })
 
-new Chart(
-narrativeChart,
-{
+new Chart(narrativeChart,{
 type:"bar",
-data:{labels:Object.keys(n),datasets:[{data:Object.values(n),backgroundColor:"#ffcc00"}]}
+data:{
+labels:Object.keys(n),
+datasets:[{data:Object.values(n),backgroundColor:"#ffcc00"}]
+}
 })
 
-new Chart(
-regionChart,
-{
+new Chart(subChart,{
 type:"bar",
-data:{labels:Object.keys(r),datasets:[{data:Object.values(r),backgroundColor:"#4da6ff"}]}
-})
-
-new Chart(
-subChart,
-{
-type:"bar",
-data:{labels:Object.keys(s),datasets:[{data:Object.values(s),backgroundColor:"#ff66cc"}]}
+data:{
+labels:Object.keys(sub),
+datasets:[{data:Object.values(sub),backgroundColor:"#4da6ff"}]
+}
 })
 
 }
 
-function displayFeed(feed){
+function displayOpinions(list){
 
-const div=document.getElementById("feed")
+const div=document.getElementById("opinions")
 
-feed.slice(0,80).forEach(f=>{
+list.slice(0,80).forEach(o=>{
 
-let el=document.createElement("p")
+let p=document.createElement("p")
 
-el.innerHTML=`
-<b>r/${f.sub}</b> |
-${f.region} |
-${f.narrative}
-<br>
-${f.text}
-`
+p.innerHTML=
+"<b>r/"+o.sub+"</b> | "+
+o.sentiment+" | "+
+o.narrative+
+"<br>"+o.text
 
-div.appendChild(el)
+div.appendChild(p)
 
 })
+
+}
+
+function detectRisks(sentiments,narratives){
+
+const alerts=document.getElementById("alerts")
+
+let text=""
+
+if(sentiments.fear>5)
+text+="🔴 High fear narrative detected<br>"
+
+if(sentiments.anger>5)
+text+="🔴 Anger escalation detected<br>"
+
+if(narratives.war>5)
+text+="🟠 War escalation discussion rising<br>"
+
+if(narratives.economy>5)
+text+="🟡 Economic crisis narrative rising<br>"
+
+alerts.innerHTML=text||"No critical emotional signals detected"
 
 }
 
@@ -289,7 +313,6 @@ L.tileLayer(
 ).addTo(map)
 
 const coords={
-
 USA:[38,-97],
 China:[35,103],
 Russia:[55,37],
@@ -297,7 +320,6 @@ Europe:[50,10],
 MiddleEast:[25,45],
 LatinAmerica:[-15,-60],
 Asia:[20,100]
-
 }
 
 for(let r in regions){
@@ -319,6 +341,5 @@ color:"red"
 analyze()
 
 </script>
-
 </body>
 </html>
